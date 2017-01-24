@@ -1,0 +1,45 @@
+LM8333 Keypad
+
+Required properties:
+- compatible: Compatible property value should be "ti,lm8333".
+
+- reg: The I2C address of the device.
+
+- interrupts: The interrupt number for the peripheral.
+
+- linux,keymap: The keymap to use 
+  (see Documentation/devicetree/bindings/input/matrix-keymap.txt).
+
+Optional properties:
+- ti,active-time-ms: Specify the time during which the keypad is scanned
+  after the last key is released, before entering Halt mode. The active
+  time must be longer than the debounce time.
+  Default 500 ms.
+
+- debounce-delay-ms: Specify the keypad debounce time.
+  This can be used for reliable scanning of keyboards with noisy 
+  contacts.
+  Default 10 ms.
+
+Example:
+input {
+	compatible = "ti,lm8333";
+	reg = <0x51>;
+	interrupts = <5>;
+
+	ti,active-time-ms = <750>;
+	debounce-delay-ms = <20>;
+
+	linux,keymap = <
+			0x0001001e
+			0x00020030
+			0x0003002e
+			0x00040020
+			0x00050012
+			0x00060021
+			0x00070022
+			0x00080023
+			0x01010017
+			0x01020024
+			0x01030025>;
+};
