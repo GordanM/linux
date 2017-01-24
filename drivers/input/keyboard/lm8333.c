@@ -128,6 +128,51 @@ static irqreturn_t lm8333_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static struct lm8333_platform_data *lm8333_parse_dt(struct i2c_client *client)
+{
+	struct device_node *np = client->dev.of_node;
+	struct lm8333_platform_data *pdata;
+	struct matrix_keymap_data *matrix_data;
+	u32 *keymap;
+	u32 prop;
+	int len;
+
+	pdata = devm_kzalloc(&client->dev, sizeof(pdata),
+				GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	if (!of_property_read_u32(np, "ti,active-time-ms", &prop))
+		pdata->active_time = prop;
+
+	if (!of_property_read_u32(np, "debounce-delay-ms", &prop))
+		pdata->debounce_time = prop;
+	else
+		pdata->debounce_time = 10;
+
+	if (!of_get_property(np, "linux,keymap", &prop))
+		len = prop / sizeof(u32);
+	else {
+		dev_err(&client->dev, "no keymap data defined\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	keymap = devm_kzalloc(&client->dev, sizeof(len) * len, GFP_KERNEL);
+	matrix_data = devm_kzalloc(&client->dev, sizeof(matrix_data),
+					GFP_KERNEL);
+	if (!matrix_data || !keymap)
+		return ERR_PTR(-ENOMEM);
+
+	if (!of_property_read_u32_array(np, "linux,keymap", keymap, len)) {
+		matrix_data->keymap_size = len;
+		matrix_data->keymap = keymap;
+
+		pdata->matrix_data = matrix_data;
+	}
+
+	return pdata;
+}
+
 static int lm8333_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
@@ -136,6 +181,15 @@ static int lm8333_probe(struct i2c_client *client,
 	struct lm8333 *lm8333;
 	struct input_dev *input;
 	int err, active_time;
+
+	if (!pdata && client->dev.of_node) {
+		pdata = lm8333_parse_dt(client);
+		if (IS_ERR(pdata)) {
+			dev_err(&client->dev,
+				"could not parse configuration\n");
+			return IS_ERR(pdata);
+		}
+	}
 
 	if (!pdata)
 		return -EINVAL;
